@@ -1,0 +1,17 @@
+<idea-plugin>
+    <id>ru.fixprice.tools.terminalPinnedTabGuard</id>
+    <name>Terminal Pinned Tab Guard</name>
+    <vendor>FixPrice</vendor>
+
+    <description><![CDATA[
+    Запрещает закрытие закреплённой вкладки Terminal (после «Move to Editor») по Cmd+W.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity
+            implementation="ru.fixprice.tools.terminal_pinned_tab_guard.TerminalPinnedTabCloseGuardStartupActivity" />
+    </extensions>
+</idea-plugin>
+
