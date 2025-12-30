@@ -37,7 +37,7 @@ internal object TerminalPinnedTabDetector {
             ?: false
     }
 
-    private fun isTerminalVirtualFile(file: VirtualFile): Boolean {
+    internal fun isTerminalVirtualFile(file: VirtualFile): Boolean {
         val fileTypeName = file.fileType.name
         if (fileTypeName.equals("Terminal", ignoreCase = true)) {
             return true

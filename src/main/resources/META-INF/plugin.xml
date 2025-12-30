@@ -8,10 +8,20 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <postStartupActivity
             implementation="ru.fixprice.tools.terminal_pinned_tab_guard.TerminalPinnedTabCloseGuardStartupActivity" />
     </extensions>
-</idea-plugin>
 
+    <actions>
+        <action id="TerminalPinnedTabGuard.OpenTerminalInEditor"
+                class="ru.fixprice.tools.terminal_pinned_tab_guard.action.OpenTerminalInEditorAction"
+                text="Open Terminal in Editor"
+                description="Open Terminal tab directly in the editor"
+                icon="AllIcons.Nodes.Console">
+            <add-to-group group-id="ToolsMenu" anchor="last" />
+        </action>
+    </actions>
+</idea-plugin>

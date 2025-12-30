@@ -1,23 +1,22 @@
 package ru.fixprice.tools.terminal_pinned_tab_guard.action
 
 import com.intellij.openapi.actionSystem.ActionManager
-import java.util.concurrent.atomic.AtomicBoolean
 
 internal object TerminalPinnedTabCloseGuardActionReplacer {
 
-    private val isReplaced = AtomicBoolean(false)
+    private val actionIds = listOf(
+        "CloseContent",
+        "CloseActiveTab",
+        "CloseEditor",
+        "Terminal.CloseTab",
+        "Terminal.CloseSession",
+    )
 
     fun replaceCloseActions() {
-        if (!isReplaced.compareAndSet(false, true)) {
-            return
-        }
-
         val actionManager = ActionManager.getInstance()
-        replaceAction(actionManager, "CloseContent")
-        replaceAction(actionManager, "CloseActiveTab")
-        replaceAction(actionManager, "CloseEditor")
-        replaceAction(actionManager, "Terminal.CloseTab")
-        replaceAction(actionManager, "Terminal.CloseSession")
+        for (actionId in actionIds) {
+            replaceAction(actionManager, actionId)
+        }
     }
 
     private fun replaceAction(
