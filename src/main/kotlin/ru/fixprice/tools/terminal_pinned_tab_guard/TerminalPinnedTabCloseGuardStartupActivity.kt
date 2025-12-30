@@ -4,8 +4,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ex.ToolWindowManagerListener
@@ -50,14 +48,9 @@ internal class TerminalPinnedTabCloseGuardStartupActivity : StartupActivity.Dumb
                         TerminalEditorRestoreTracker.markTerminalEditorOpen(project)
                     }
                 }
-            },
-        )
 
-        ApplicationManager.getApplication().messageBus.connect(project).subscribe(
-            ProjectManager.TOPIC,
-            object : ProjectManagerListener {
-                override fun projectClosingBeforeSave(closingProject: Project) {
-                    if (closingProject == project) {
+                override fun fileClosed(manager: FileEditorManager, file: com.intellij.openapi.vfs.VirtualFile) {
+                    if (TerminalPinnedTabDetector.isTerminalVirtualFile(file)) {
                         TerminalEditorRestoreTracker.updateFromOpenFiles(project)
                     }
                 }

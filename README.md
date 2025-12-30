@@ -30,12 +30,19 @@ When any terminal tab is opened in the editor area, the plugin automatically pin
 
 The plugin remembers when you had a terminal open in the editor area. On the next project startup, it will automatically restore a terminal in the editor if one was previously open.
 
-### File Drag & Drop Support
+### File & Image Drag & Drop
 
-Drag files from the project tree (or Finder/Explorer) directly onto a terminal tab in the editor. The plugin will:
+Drag files or images from the project tree (or Finder/Explorer) directly onto a terminal tab in the editor. The plugin will:
 - Insert the file path(s) at the cursor position
 - Properly quote paths containing special characters
 - Handle multiple files (space-separated)
+- For dragged images: save as a temporary PNG file and insert the path
+
+### Clipboard Image Paste
+
+When the clipboard contains an image, pressing `Cmd+V` (macOS) or `Ctrl+V` (Windows/Linux) in a terminal tab in the editor will:
+- Save the image as a temporary PNG
+- Insert the file path at the cursor position
 
 ## Requirements
 
