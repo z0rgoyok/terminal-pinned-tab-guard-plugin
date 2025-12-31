@@ -428,8 +428,18 @@ internal object TerminalEditorFileDropSupport {
     }
 
     private fun writeImageToTemp(bufferedImage: BufferedImage): File? {
+        val preferredTempDir = if (SystemInfo.isMac) {
+            File("/tmp").takeIf { it.isDirectory && it.canWrite() }
+        } else {
+            null
+        }
+
         val file = kotlin.runCatching {
-            File.createTempFile("terminal-pinned-tab-guard-", ".png")
+            if (preferredTempDir != null) {
+                File.createTempFile("terminal-pinned-tab-guard-", ".png", preferredTempDir)
+            } else {
+                File.createTempFile("terminal-pinned-tab-guard-", ".png")
+            }
         }.getOrNull() ?: return null
         file.deleteOnExit()
 
