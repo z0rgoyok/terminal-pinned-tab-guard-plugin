@@ -67,7 +67,7 @@ From the repository root:
 
 The plugin archive will be created at:
 ```
-build/distributions/terminal-pinned-tab-guard-plugin-<version>.zip
+build/distributions/terminal-pinned-tab-guard-<version>.zip
 ```
 
 ## Usage

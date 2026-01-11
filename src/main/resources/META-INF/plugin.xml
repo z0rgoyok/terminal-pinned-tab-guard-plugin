@@ -11,6 +11,8 @@
     <depends>org.jetbrains.plugins.terminal</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <projectService
+            serviceImplementation="ru.fixprice.tools.terminal_pinned_tab_guard.TerminalPinnedTabGuardState" />
         <postStartupActivity
             implementation="ru.fixprice.tools.terminal_pinned_tab_guard.TerminalPinnedTabCloseGuardStartupActivity" />
     </extensions>
