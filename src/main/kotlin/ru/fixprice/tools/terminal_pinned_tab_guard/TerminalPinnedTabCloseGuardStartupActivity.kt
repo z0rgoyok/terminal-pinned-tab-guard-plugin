@@ -13,6 +13,8 @@ import ru.fixprice.tools.terminal_pinned_tab_guard.detector.TerminalPinnedTabDet
 internal class TerminalPinnedTabCloseGuardStartupActivity : StartupActivity.DumbAware {
 
     override fun runActivity(project: Project) {
+        TerminalCloseShortcutGuard.install(project)
+
         ApplicationManager.getApplication().invokeLater {
             onTerminalAvailable(project)
             TerminalEditorFileDropSupport.installForOpenFiles(project)
