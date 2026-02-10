@@ -21,11 +21,26 @@ internal class TerminalPinnedTabCloseGuardAction(
             return
         }
 
+        val activeFile = getActiveSelectedFile(project)
+        if (TerminalPinnedTabDetector.shouldBlockClose(project, activeFile)) {
+            if (activeFile != null) {
+                selectNextUnpinnedTab(project, activeFile)
+            }
+            return
+        }
+
         val fileToClose = getFileToClose(project, e)
-        if (TerminalPinnedTabDetector.shouldBlockClose(project, fileToClose)) {
+        if (fileToClose != activeFile &&
+            TerminalPinnedTabDetector.shouldBlockClose(project, fileToClose)
+        ) {
             if (fileToClose != null) {
                 selectNextUnpinnedTab(project, fileToClose)
             }
+            return
+        }
+
+        if (shouldCloseFileDirectly(project, e, fileToClose)) {
+            closeFileDirectly(project, fileToClose!!)
             return
         }
 
@@ -45,8 +60,7 @@ internal class TerminalPinnedTabCloseGuardAction(
         val inputEvent = e.inputEvent
         val preferSelectedFile = inputEvent == null || inputEvent is java.awt.event.KeyEvent
         if (preferSelectedFile) {
-            return managerEx.currentWindow?.selectedComposite?.file
-                ?: manager.selectedFiles.firstOrNull()
+            return getActiveSelectedFile(project)
         }
 
         val eventFile = e.getData(CommonDataKeys.VIRTUAL_FILE)
@@ -62,6 +76,45 @@ internal class TerminalPinnedTabCloseGuardAction(
 
         return managerEx.currentWindow?.selectedComposite?.file
             ?: manager.selectedFiles.firstOrNull()
+    }
+
+    private fun getActiveSelectedFile(project: Project): VirtualFile? {
+        val manager = FileEditorManager.getInstance(project)
+        val managerEx = FileEditorManagerEx.getInstanceEx(project)
+        return managerEx.currentWindow?.selectedComposite?.file
+            ?: manager.selectedFiles.firstOrNull()
+    }
+
+    private fun shouldCloseFileDirectly(
+        project: Project,
+        e: AnActionEvent,
+        fileToClose: VirtualFile?,
+    ): Boolean {
+        if (fileToClose == null) {
+            return false
+        }
+
+        val inputEvent = e.inputEvent
+        val isKeyboardInvocation = inputEvent == null || inputEvent is java.awt.event.KeyEvent
+        if (!isKeyboardInvocation) {
+            return false
+        }
+
+        return FileEditorManager.getInstance(project).isFileOpen(fileToClose)
+    }
+
+    private fun closeFileDirectly(project: Project, fileToClose: VirtualFile) {
+        val manager = FileEditorManager.getInstance(project)
+        val managerEx = FileEditorManagerEx.getInstanceEx(project)
+        val window = managerEx.currentWindow?.takeIf { it.isFileOpen(fileToClose) }
+            ?: managerEx.windows.firstOrNull { it.isFileOpen(fileToClose) }
+
+        if (window != null) {
+            managerEx.closeFileWithChecks(fileToClose, window)
+            return
+        }
+
+        manager.closeFile(fileToClose)
     }
 
     private fun selectNextUnpinnedTab(
