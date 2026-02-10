@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.DataKey
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
@@ -24,6 +25,7 @@ internal object TerminalPinnedTabEditorOpener {
     private const val MOVE_TO_EDITOR_ACTION_ID = "Terminal.MoveToEditor"
     private val TOOL_WINDOW_CONTENT_MANAGER_KEY =
         DataKey.create<ContentManager>("toolWindowContentManager")
+    private val CONTENT_KEY = DataKey.create<Content>("content")
     private val openedOnStartup = AtomicBoolean(false)
     private const val MOVE_TO_EDITOR_ATTEMPTS = 3
 
@@ -69,12 +71,10 @@ internal object TerminalPinnedTabEditorOpener {
         val actionManager = ActionManager.getInstance()
         val newTabAction = actionManager.getAction(NEW_TAB_ACTION_ID) ?: return false
         val moveAction = actionManager.getAction(MOVE_TO_EDITOR_ACTION_ID) ?: return false
+        val contentManager = toolWindow.contentManager
+        val existingContents = contentManager.contents.toSet()
 
-        val dataContext = SimpleDataContext.builder()
-            .add(CommonDataKeys.PROJECT, project)
-            .add(PlatformDataKeys.TOOL_WINDOW, toolWindow)
-            .add(TOOL_WINDOW_CONTENT_MANAGER_KEY, toolWindow.contentManager)
-            .build()
+        val dataContext = createDataContext(project, toolWindow, null)
 
         val newTabEvent = AnActionEvent.createFromDataContext(
             ActionPlaces.UNKNOWN,
@@ -84,7 +84,13 @@ internal object TerminalPinnedTabEditorOpener {
         newTabAction.actionPerformed(newTabEvent)
 
         ApplicationManager.getApplication().invokeLater {
-            moveNewTerminalToEditor(project, toolWindow, moveAction, dataContext, MOVE_TO_EDITOR_ATTEMPTS)
+            moveNewTerminalToEditor(
+                project,
+                toolWindow,
+                moveAction,
+                existingContents,
+                MOVE_TO_EDITOR_ATTEMPTS,
+            )
         }
 
         return true
@@ -94,17 +100,32 @@ internal object TerminalPinnedTabEditorOpener {
         project: Project,
         toolWindow: ToolWindow,
         moveAction: com.intellij.openapi.actionSystem.AnAction,
-        dataContext: com.intellij.openapi.actionSystem.DataContext,
+        existingContents: Set<Content>,
         remainingAttempts: Int,
     ) {
-        val content = toolWindow.contentManager.selectedContent
-            ?: toolWindow.contentManager.contents.lastOrNull()
-            ?: return
+        val contentManager = toolWindow.contentManager
+        val content = findContentToMove(contentManager, existingContents, remainingAttempts)
+        if (content == null) {
+            if (remainingAttempts > 1) {
+                ApplicationManager.getApplication().invokeLater {
+                    moveNewTerminalToEditor(
+                        project,
+                        toolWindow,
+                        moveAction,
+                        existingContents,
+                        remainingAttempts - 1,
+                    )
+                }
+            }
+            return
+        }
+
+        val moveContext = createDataContext(project, toolWindow, content)
 
         val moveEvent = AnActionEvent.createFromDataContext(
             ActionPlaces.UNKNOWN,
             moveAction.templatePresentation.clone(),
-            dataContext,
+            moveContext,
         )
 
         val moved = invokeMoveToEditor(moveAction, moveEvent, project, content)
@@ -116,7 +137,13 @@ internal object TerminalPinnedTabEditorOpener {
 
         if (remainingAttempts > 1) {
             ApplicationManager.getApplication().invokeLater {
-                moveNewTerminalToEditor(project, toolWindow, moveAction, dataContext, remainingAttempts - 1)
+                moveNewTerminalToEditor(
+                    project,
+                    toolWindow,
+                    moveAction,
+                    existingContents,
+                    remainingAttempts - 1,
+                )
             }
         }
     }
@@ -131,16 +158,57 @@ internal object TerminalPinnedTabEditorOpener {
         val moveMethod = moveAction.javaClass.methods.firstOrNull { method ->
             method.name == "actionPerformedInTerminalToolWindow" &&
                 method.parameterTypes.size == 4 &&
-                method.parameterTypes[0] == AnActionEvent::class.java
+                method.parameterTypes[0] == AnActionEvent::class.java &&
+                method.parameterTypes[1] == Project::class.java &&
+                method.parameterTypes[2] == Content::class.java
         }
 
-        if (terminalWidget != null && moveMethod != null) {
-            moveMethod.invoke(moveAction, moveEvent, project, content, terminalWidget)
+        val movedWithTerminalContext = if (terminalWidget != null && moveMethod != null) {
+            runCatching {
+                moveMethod.trySetAccessible()
+                moveMethod.invoke(moveAction, moveEvent, project, content, terminalWidget)
+            }.isSuccess
         } else {
+            false
+        }
+
+        if (!movedWithTerminalContext) {
             moveAction.actionPerformed(moveEvent)
         }
 
         return findTerminalEditorFile(project) != null
+    }
+
+    private fun findContentToMove(
+        contentManager: ContentManager,
+        existingContents: Set<Content>,
+        remainingAttempts: Int,
+    ): Content? {
+        val newContent = contentManager.contents.firstOrNull { it !in existingContents }
+        if (newContent != null) {
+            return newContent
+        }
+        if (remainingAttempts > 1) {
+            return null
+        }
+
+        return contentManager.selectedContent
+            ?: contentManager.contents.lastOrNull()
+    }
+
+    private fun createDataContext(
+        project: Project,
+        toolWindow: ToolWindow,
+        content: Content?,
+    ): DataContext {
+        val builder = SimpleDataContext.builder()
+            .add(CommonDataKeys.PROJECT, project)
+            .add(PlatformDataKeys.TOOL_WINDOW, toolWindow)
+            .add(TOOL_WINDOW_CONTENT_MANAGER_KEY, toolWindow.contentManager)
+        if (content != null) {
+            builder.add(CONTENT_KEY, content)
+        }
+        return builder.build()
     }
 
     private fun findTerminalWidgetByContent(content: Content): Any? {
